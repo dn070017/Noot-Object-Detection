@@ -1,3 +1,4 @@
+from noot.utils.TensorUtils import TensorUtils
 import tensorflow as tf
 
 class CenterNet(tf.keras.Model):
@@ -49,8 +50,9 @@ class CenterNet(tf.keras.Model):
       loss, keypoint_loss, offset_loss, size_loss = self.compute_loss(data, outputs, lambda_offset=lambda_offset, lambda_size=lambda_size)
     
     gradients = tape.gradient(loss, self.trainable_variables)
+    gradients = TensorUtils.remove_nan_gradients(gradients)
     self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-    
+
     return { 'loss': loss.numpy(), 'keypoint_loss': keypoint_loss.numpy(), 'offset_loss': offset_loss.numpy(), 'size_loss': size_loss.numpy() }
 
   def compute_loss(self, inputs, outputs, alpha=2, beta=4, lambda_offset=1, lambda_size=0.2):
@@ -82,7 +84,8 @@ class CenterNet(tf.keras.Model):
 
     pi = 3.1415926
     radius = tf.math.sqrt(0.3 * area / pi)
-    p_hat_sigma = tf.reshape(2 / 3 * radius * tf.ones((n, max_n_keypoints)), (n, max_n_keypoints, 1, 1))
+    p_hat_sigma = tf.reshape(
+        2 / (3 * radius * tf.ones((n, max_n_keypoints)) + 1e-3), (n, max_n_keypoints, 1, 1))
 
     coord_x = tf.zeros((lowres_height, lowres_width)) + tf.cast(tf.range(lowres_width), tf.float32)
     coord_y = tf.transpose(tf.zeros((lowres_width, lowres_height)) + tf.cast(tf.range(lowres_height), tf.float32), [1, 0])
@@ -94,7 +97,7 @@ class CenterNet(tf.keras.Model):
     coord_y = tf.reshape(coord_y, (n, 1, lowres_height, lowres_width))
 
     y_pred = outputs[:, :, :, 0]
-    y_true = tf.math.exp(-1 * ((coord_x-p_hat_x_tensor)** 2 + (coord_y-p_hat_y_tensor)**2)/p_hat_sigma)
+    y_true = tf.math.exp(-1 * ((coord_x-p_hat_x_tensor)** 2 + (coord_y-p_hat_y_tensor)**2) / p_hat_sigma)
     y_true = tf.reduce_max(y_true, axis=1)
 
     keypoint_loss = -1 / n_keypoints * tf.reduce_sum(

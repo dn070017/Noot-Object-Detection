@@ -1,12 +1,9 @@
-from noot.models.CenterNetLite import CenterNetLite
+from noot.models.CenterNet import CenterNet
 from noot.preprocess.Preprocess import Preprocess
 from time import time
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import seaborn as sns
 
 try:
   physical_devices = tf.config.list_physical_devices('GPU')
@@ -22,11 +19,11 @@ except:
   dataset = dataset['train'].map(Preprocess.flatten_dictionary).filter(Preprocess.filter_nonperson).map(Preprocess.exclude_nonperson_label).map(Preprocess.normalize_image).map(Preprocess.rescale_image)
   tf.data.experimental.save(dataset, 'datasets/coco')
 
-model = CenterNetLite()
+model = CenterNet()
 model.compile(run_eagerly=True)
-model.optimizer = tf.keras.optimizers.Adam(learning_rate=2.5e-4)
+model.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
 
-batch_size = 16
+batch_size = 5
 val_images = 1024
 max_n_epochs = 256
 best_loss = 10000

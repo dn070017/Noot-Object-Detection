@@ -55,25 +55,27 @@ class Preprocess:
     scaled_height: int = 512,
   ):
     scaled_image = tf.image.resize(X['image'], (scaled_height, scaled_width))
-    n_objects = len(X['objects/label'])
-    n_padding = max_n_objects - n_objects
-    if n_padding >= 0:
-      area = tf.map_fn(fn=lambda x: scaled_width * (x[3] - x[1]) * scaled_height * (x[2] - x[0]), elems=X['objects/bbox'])
-      area = tf.pad(area, tf.convert_to_tensor([[0, n_padding]]), 'CONSTANT', constant_values=-1.0)
-      label = tf.pad(X['objects/label'], tf.convert_to_tensor([[0, n_padding]]), 'CONSTANT', constant_values=-1)
-      bbox = tf.pad(X['objects/bbox'], tf.convert_to_tensor([[0, n_padding], [0, 0]]), 'CONSTANT', constant_values=-1.0)
-    else:
-      area = tf.cast(X['objects/area'][0:max_n_objects], tf.float32)
-      label = X['objects/label'][0:max_n_objects]
-      bbox = X['objects/bbox'][0:max_n_objects]
+    if 'objects/label' in X:
+      n_objects = len(X['objects/label'])
+      n_padding = max_n_objects - n_objects
+      if n_padding >= 0:
+        area = tf.map_fn(fn=lambda x: scaled_width * (x[3] - x[1]) * scaled_height * (x[2] - x[0]), elems=X['objects/bbox'])
+        area = tf.pad(area, tf.convert_to_tensor([[0, n_padding]]), 'CONSTANT', constant_values=-1.0)
+        label = tf.pad(X['objects/label'], tf.convert_to_tensor([[0, n_padding]]), 'CONSTANT', constant_values=-1)
+        bbox = tf.pad(X['objects/bbox'], tf.convert_to_tensor([[0, n_padding], [0, 0]]), 'CONSTANT', constant_values=-1.0)
+      else:
+        area = tf.cast(X['objects/area'][0:max_n_objects], tf.float32)
+        label = X['objects/label'][0:max_n_objects]
+        bbox = X['objects/bbox'][0:max_n_objects]
 
     X['image'] = scaled_image
-    X['objects/area'] = area
-    X['objects/label'] = label
-    X['objects/bbox'] = bbox
-    del X['image/filename']
-    del X['image/id']
-    del X['objects/id']
-    del X['objects/is_crowd']
+    if 'objects/label' in X:
+      X['objects/area'] = area
+      X['objects/label'] = label
+      X['objects/bbox'] = bbox
+      del X['image/filename']
+      del X['image/id']
+      del X['objects/id']
+      del X['objects/is_crowd']
   
     return X
